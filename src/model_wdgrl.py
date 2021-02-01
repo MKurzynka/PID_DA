@@ -19,7 +19,6 @@ def discriminator():
         nn.ReLU(),
         nn.Dropout(p=0.3),
         nn.Linear(50, 1),
-        nn.Sigmoid()
     )
 
     return discriminator

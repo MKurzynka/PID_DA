@@ -3,6 +3,7 @@ from torch.optim import Adam, RMSprop
 from torch.autograd import grad
 from torch import norm, cat, no_grad, save, rand, stack, ones_like
 from torch import abs as t_abs
+from torch.nn import BCEWithLogitsLoss
 from numpy import inf as np_inf
 from tqdm import tqdm
 import evaluate
@@ -119,7 +120,7 @@ def train_wdgrl(model, critic, criterion,
 
     model.eval()
 
-def train_nn(model, criterion, lr, n_epochs, train_data_loader, 
+def train_nn(model, lr, n_epochs, train_data_loader, 
             valid_data_loader, save_name, device='cpu', patience=4):
     
     optim = Adam(model.parameters(), lr)
@@ -129,10 +130,10 @@ def train_nn(model, criterion, lr, n_epochs, train_data_loader,
 
     for epoch in range(1, n_epochs + 1):
         model.train()
-        train_loss, train_accuracy = do_epoch_nn(model, train_data_loader, criterion, device, optim=optim)
+        train_loss, train_accuracy = do_epoch_nn(model, train_data_loader, device, optim=optim)
         model.eval()
         with no_grad():
-            val_loss, val_accuracy = do_epoch_nn(model, valid_data_loader, criterion, device, optim=None)
+            val_loss, val_accuracy = do_epoch_nn(model, valid_data_loader, device, optim=None)
 
         tqdm.write(f'EPOCH {epoch:03d}: train_loss={train_loss:.4f}, train_accuracy={train_accuracy:.4f} '
                 f'val_loss={val_loss:.4f}, val_accuracy={val_accuracy:.4f}')
@@ -145,11 +146,12 @@ def train_nn(model, criterion, lr, n_epochs, train_data_loader,
         lr_schedule.step(val_loss)
     model.eval()
 
-def do_epoch_nn(model, dataloader, criterion, device, optim=None):
+def do_epoch_nn(model, dataloader, device, optim=None):
     total_loss = 0
     total_accuracy = 0
     for x, y_true, weights in tqdm(dataloader, leave=False):
         x, y_true, weights = x.to(device), y_true.to(device), weights.to(device)
+        criterion = BCEWithLogitsLoss(pos_weight=weights)
         criterion.weights = weights
         y_pred = model(x)
         loss = criterion(y_pred.view(-1), y_true)
